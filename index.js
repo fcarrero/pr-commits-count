@@ -1,17 +1,19 @@
 const core = require('@actions/core');
-const exec = require('@actions/exec');
-
+const exec = require("@actions/exec");
+const github = require("@actions/github");
+const src = __dirname;
 const messages = {};
 messages.exceptList = 'Source branch is in except list. Check was skipped';
 messages.squash = 'Only 1 commit is possible in pull request. Please squash your commits';
 
 try {
-    const sourceBranch = core.getInput('source-branch');
-    const targetBranch = core.getInput('target-branch');
+    const targetBranch = github.context.payload.pull_request.base.ref
+    const sourceBranch = github.context.payload.pull_request.head.ref
     const exceptBranches = core.getInput('except-branches').split(';');
     const commitsCount = Number.parseInt(core.getInput('commits-count'));
 
-    if (exceptBranches.includes(sourceBranch)) {
+    const pattern = exceptBranches.find((target) => target.match( (targetBranch).split("/")[0] ))
+    if (pattern) {
         core.info(messages.exceptList);
     } else {
         getCommitsCount(sourceBranch, targetBranch)
@@ -27,31 +29,23 @@ try {
 }
 
 async function getCommitsCount(sourceBranch, targetBranch) {
-
-    try {
-        let out = '';
-        let err = '';
-        const options = {
-            listeners: {
-                stdout: (data) => {
-                    out += data.toString();
-                },
-                stderr: (data) => {
-                    err += data.toString();
-                }
+    let out = '';
+    let err = '';
+    const options = {
+        listeners: {
+            stdout: (data) => {
+                out += data.toString();
             },
-        };
-
-        await exec.exec(`${__dirname}/commits-count.sh`, [sourceBranch, targetBranch], options);
-
-        if (err) {
-            core.setFailed(err);
-            process.exit(0);
-        } else {
-            return Number.parseInt(out.trim());
-        }
-    } catch (error) {
-        core.setFailed(`Error: ${error.message}`);
-        process.exit(0);
+            stderr: (data) => {
+                err += data.toString();
+            }
+        },
+    };
+    core.info(src)
+    await exec.exec(`${src}/commits-count.sh`, [sourceBranch, targetBranch], options);
+    if (err) {
+        core.setFailed(err);
+    } else {
+        return Number.parseInt(out.trim());
     }
 }
