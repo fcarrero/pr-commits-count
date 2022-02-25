@@ -3,14 +3,20 @@ const exec = require("@actions/exec");
 const github = require("@actions/github");
 const src = __dirname;
 const messages = {};
-messages.exceptList = 'Source branch is in except list. Check was skipped';
+messages.exceptList = 'target branch is in except list. Check was skipped';
 messages.squash = 'Only 1 commit is possible in pull request. Please squash your commits';
+messages.backport = 'source branch is backport. Check was skipped';
 
 try {
     const targetBranch = github.context.payload.pull_request.base.ref
     const sourceBranch = github.context.payload.pull_request.head.ref
     const exceptBranches = core.getInput('except-branches').split(';');
     const commitsCount = Number.parseInt(core.getInput('commits-count'));
+
+    if (sourceBranch.split("/").includes("backport")) {
+        core.info(messages.backport);
+        return
+    }
 
     const pattern = exceptBranches.find((target) => target.match( (targetBranch).split("/")[0] ))
     if (pattern) {
